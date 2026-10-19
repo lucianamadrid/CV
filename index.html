@@ -101,16 +101,8 @@ textarea{resize:vertical;min-height:64px}
       <button id="btnPlantilla" type="button">Mensaje WhatsApp</button>
       <button id="btnNuevo" type="button">+ Candidato</button>
       <a id="btnHoja" class="btn primary" href="#" target="_blank" rel="noopener" hidden>Abrir Google Sheet</a>
-      <button id="btnAjustes" type="button" aria-label="Ajustes">⚙</button>
     </div>
   </header>
-
-  <section class="panel" id="panelAjustes" hidden>
-    <h2>Conectar con tu Google Sheet</h2>
-    <p class="hint">Pega la URL del script de tu Google Sheet (termina en /exec). Para no tener que hacerlo en cada móvil, pégala también en la línea URL_SCRIPT de index.html.</p>
-    <label class="f"><span>URL del script</span><input type="url" id="cfgUrl" placeholder="https://script.google.com/macros/s/…/exec"></label>
-    <div class="actions"><button type="button" class="primary" id="cfgGuardar">Guardar y conectar</button><p class="err" id="cfgErr"></p></div>
-  </section>
 
   <section class="panel" id="panelPlantilla" hidden>
     <h2>Mensaje por defecto para WhatsApp</h2>
@@ -140,7 +132,7 @@ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const $=id=>document.getElementById(id);
 const cls=e=>(ESTADOS.find(x=>x.k===e)||{}).c||"";
 const ls={get:k=>{try{return localStorage.getItem(k)}catch(_){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(_){}}};
-let cfg={url:URL_SCRIPT||ls.get("cfgUrl")||""};
+let cfg={url:URL_SCRIPT};
 let datos={},orden=[],abierto=null,filtro="TODOS";
 const pend={},enVuelo={},timers={};
 
@@ -157,7 +149,6 @@ async function api(cuerpo){
   const j=await r.json();if(!j.ok)throw new Error(j.error||"error");return j;
 }
 async function cargar(){
-  if(!cfg.url){$("panelAjustes").hidden=false;$("resumen").textContent="Falta conectar con tu Google Sheet";$("lista").innerHTML='<p class="empty">Pega arriba la URL del script de tu Google Sheet.</p>';return}
   $("resumen").textContent="Leyendo la hoja…";
   try{
     const r=await fetch(cfg.url);const j=await r.json();
@@ -165,8 +156,8 @@ async function cargar(){
     datos={};orden=[];
     for(const c of j.candidatos){datos[c.id]={...c,...(pend[c.id]||{})};orden.push(c.id)}
     if(j.hoja){$("btnHoja").href=j.hoja;$("btnHoja").hidden=false}
-    $("cfgErr").textContent="";render();
-  }catch(e){$("resumen").textContent="No se pudo leer la hoja. Revisa la conexión o los ajustes (⚙).";}
+    render();
+  }catch(e){$("resumen").textContent="No se pudo leer la hoja. Revisa tu conexión a internet y pulsa Actualizar.";}
 }
 function guardar(id,campos,ya){
   Object.assign(datos[id],campos);pend[id]=Object.assign(pend[id]||{},campos);
@@ -282,12 +273,8 @@ $("lista").addEventListener("input",e=>{const k=e.target.dataset.k;if(!k)return;
 
 $("plantilla").value=ls.get("plantillaWA")||PLANTILLA_DEF;
 $("plantilla").addEventListener("input",e=>ls.set("plantillaWA",e.target.value));
-for(const [b,p] of [["btnPlantilla","panelPlantilla"],["btnNuevo","panelNuevo"],["btnAjustes","panelAjustes"]])$(b).onclick=()=>{$(p).hidden=!$(p).hidden};
+for(const [b,p] of [["btnPlantilla","panelPlantilla"],["btnNuevo","panelNuevo"]])$(b).onclick=()=>{$(p).hidden=!$(p).hidden};
 $("btnRecargar").onclick=()=>{Object.keys(pend).forEach(flush);cargar()};
-$("cfgUrl").value=cfg.url;
-$("cfgGuardar").onclick=()=>{cfg={url:$("cfgUrl").value.trim()};
-  if(!/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec/.test(cfg.url)){$("cfgErr").textContent="La URL debe empezar por https://script.google.com y terminar en /exec";return}
-  ls.set("cfgUrl",cfg.url);$("panelAjustes").hidden=true;cargar()};
 $("nGuardar").onclick=async()=>{
   const nombre=$("nNombre").value.trim(),tel=$("nTel").value.replace(/\D/g,"");
   if(!nombre){toast("Escribe al menos el nombre");return}
