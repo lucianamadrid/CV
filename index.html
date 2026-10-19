@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1f5f52">
+<title>Selección de Personal</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f5f52'/%3E%3Ccircle cx='32' cy='24' r='10' fill='white'/%3E%3Cpath d='M14 52c2-10 9-15 18-15s16 5 18 15' fill='white'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<script>
+  /* ===== PEGA AQUÍ LA URL DE TU SCRIPT (la que termina en /exec) ===== */
+  const URL_SCRIPT = "";
+</script>
+<style>
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --fg:#17201d; --muted:#5f6b67; --line:#d9e0dd;
+  --accent:#1f5f52; --accent-fg:#ffffff;
+  --si:#1e7a3c; --si-bg:#e2f3e7; --no:#b3261e; --no-bg:#fbe5e3;
+  --mm:#9a6200; --mm-bg:#fcefd6; --nc:#5b4b9a; --nc-bg:#ebe7f7;
+  --wa:#1a8f4d; --rec:#d93025;
+  --display:"Familjen Grotesk","Helvetica Neue",Arial,sans-serif;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#111715; --surface:#19211e; --fg:#e7eeeb; --muted:#9aa8a3; --line:#2c3833;
+  --accent:#6cc2ac; --accent-fg:#0e1513;
+  --si:#7fd69a; --si-bg:#16301f; --no:#f19a92; --no-bg:#3a1a17;
+  --mm:#f0c06a; --mm-bg:#352812; --nc:#b9aaf2; --nc-bg:#251f3d; --wa:#5fd394; --rec:#ff7b70; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.wrap{max-width:820px;margin:0 auto;padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:18px}
+h1{font-family:var(--display);font-weight:700;font-size:1.9rem;margin:0;letter-spacing:-.01em}
+h2{font-family:var(--display);font-size:1.1rem;margin:0}
+.sub{color:var(--muted);margin:2px 0 0}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+button,.btn{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:9px 14px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px}
+button:disabled{opacity:.55;cursor:default}
+button:focus-visible,.btn:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border-radius:999px;padding:6px 12px;min-height:36px;font-size:.88rem}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.chip .n{font-variant-numeric:tabular-nums;opacity:.7}
+.list{display:grid;gap:8px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.card.si{box-shadow:inset 4px 0 0 var(--si)}.card.no{box-shadow:inset 4px 0 0 var(--no)}.card.mm{box-shadow:inset 4px 0 0 var(--mm)}.card.nc{box-shadow:inset 4px 0 0 var(--nc)}
+.row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 14px;width:100%;border:0;border-radius:0;background:none;text-align:left;min-height:60px;justify-content:stretch}
+.who{min-width:0}
+.name{font-family:var(--display);font-weight:700;font-size:1.15rem;display:block}
+.tel{color:var(--muted);font-variant-numeric:tabular-nums;font-size:.9rem;font-weight:400}
+.tel .ok{color:var(--wa);font-weight:700}
+.pill{font-size:.75rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:5px 10px;border-radius:999px;white-space:nowrap;color:var(--muted);border:1px dashed var(--line)}
+.pill.si{background:var(--si-bg);color:var(--si);border:0}.pill.no{background:var(--no-bg);color:var(--no);border:0}
+.pill.mm{background:var(--mm-bg);color:var(--mm);border:0}.pill.nc{background:var(--nc-bg);color:var(--nc);border:0}
+.detail{border-top:1px solid var(--line);padding:14px;display:grid;gap:14px}
+.voice{background:var(--bg);border-radius:12px;padding:12px;display:grid;gap:8px}
+.hint{color:var(--muted);font-size:.85rem;margin:0}
+.f{display:grid;gap:4px}
+.f>span{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+textarea,input[type=text],input[type=tel],input[type=url],input[type=password]{font:inherit;font-size:16px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+textarea{resize:vertical;min-height:64px}
+.voice textarea{min-height:90px}
+.mic{min-height:34px;padding:4px 10px;font-size:.8rem;letter-spacing:0;text-transform:none}
+.mic.rec,.bigmic.rec{background:var(--rec);border-color:var(--rec);color:#fff}
+.states{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+@media (max-width:560px){.states{grid-template-columns:repeat(2,1fr)}}
+.st{font-size:.82rem;letter-spacing:.03em;text-transform:uppercase}
+.st[aria-pressed="true"].si{background:var(--si);color:var(--surface);border-color:var(--si)}
+.st[aria-pressed="true"].no{background:var(--no);color:var(--surface);border-color:var(--no)}
+.st[aria-pressed="true"].mm{background:var(--mm);color:var(--surface);border-color:var(--mm)}
+.st[aria-pressed="true"].nc{background:var(--nc);color:var(--surface);border-color:var(--nc)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.grid2{grid-template-columns:1fr}}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.wa{background:var(--wa);color:#fff;border-color:var(--wa)}
+.saved{color:var(--muted);font-size:.85rem;margin-left:auto}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px}
+.empty{color:var(--muted);text-align:center;padding:28px 10px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;z-index:20;max-width:90vw}
+.del{color:var(--no);border-color:transparent;background:none}
+.err{color:var(--no);font-weight:700;margin:0}
+@media (prefers-reduced-motion:no-preference){.detail{animation:in .18s ease-out}@keyframes in{from{opacity:.4;transform:translateY(-4px)}to{opacity:1;transform:none}}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Selección de personal</h1>
+      <p class="sub" id="resumen">Cargando…</p>
+    </div>
+    <div class="tools">
+      <button id="btnRecargar" type="button" title="Volver a leer la hoja">Actualizar</button>
+      <button id="btnPlantilla" type="button">Mensaje WhatsApp</button>
+      <button id="btnNuevo" type="button">+ Candidato</button>
+      <a id="btnHoja" class="btn primary" href="#" target="_blank" rel="noopener" hidden>Abrir Google Sheet</a>
+      <button id="btnAjustes" type="button" aria-label="Ajustes">⚙</button>
+    </div>
+  </header>
+
+  <section class="panel" id="panelAjustes" hidden>
+    <h2>Conectar con tu Google Sheet</h2>
+    <p class="hint">Pega la URL del script de tu Google Sheet (termina en /exec). Para no tener que hacerlo en cada móvil, pégala también en la línea URL_SCRIPT de index.html.</p>
+    <label class="f"><span>URL del script</span><input type="url" id="cfgUrl" placeholder="https://script.google.com/macros/s/…/exec"></label>
+    <div class="actions"><button type="button" class="primary" id="cfgGuardar">Guardar y conectar</button><p class="err" id="cfgErr"></p></div>
+  </section>
+
+  <section class="panel" id="panelPlantilla" hidden>
+    <h2>Mensaje por defecto para WhatsApp</h2>
+    <p class="hint">Escribe <b>{nombre}</b> y se cambia por el nombre de cada persona.</p>
+    <textarea id="plantilla" rows="4"></textarea>
+  </section>
+
+  <section class="panel" id="panelNuevo" hidden>
+    <h2>Añadir candidato</h2>
+    <div class="grid2">
+      <label class="f"><span>Nombre</span><input type="text" id="nNombre"></label>
+      <label class="f"><span>Teléfono</span><input type="tel" id="nTel" inputmode="tel"></label>
+    </div>
+    <div class="actions"><button type="button" class="primary" id="nGuardar">Añadir</button></div>
+  </section>
+
+  <nav class="filters" id="filtros" aria-label="Filtrar por estado"></nav>
+  <div class="list" id="lista"><p class="empty">Cargando candidatos desde la Google Sheet…</p></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const ESTADOS=[{k:"ME GUSTA",c:"si"},{k:"NO ME GUSTA",c:"no"},{k:"MÁS O MENOS",c:"mm"},{k:"NO LE CUADRA",c:"nc"}];
+const CAMPOS=[["experiencia","Experiencia"],["mensaje","Qué mensaje nos escribe"],["comentarios","Mis comentarios"]];
+const PLANTILLA_DEF="Hola {nombre}, te escribo por la oferta de trabajo a la que te apuntaste. ¿Te viene bien que hablemos un momento? Gracias.";
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const $=id=>document.getElementById(id);
+const cls=e=>(ESTADOS.find(x=>x.k===e)||{}).c||"";
+const ls={get:k=>{try{return localStorage.getItem(k)}catch(_){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(_){}}};
+let cfg={url:URL_SCRIPT||ls.get("cfgUrl")||""};
+let datos={},orden=[],abierto=null,filtro="TODOS";
+const pend={},enVuelo={},timers={};
+
+function toast(t){const el=$("toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2800)}
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function telFmt(t){t=String(t||"").replace(/\D/g,"");return t.replace(/^(\d{3})(\d{3})(\d{3})$/,"$1 $2 $3")}
+function waLink(c){let t=String(c.telefono||"").replace(/\D/g,"");if(t.length===9)t="34"+t;
+  const msg=($("plantilla").value||PLANTILLA_DEF).replaceAll("{nombre}",(c.nombre||"").split(" ")[0]);
+  return "https://wa.me/"+t+"?text="+encodeURIComponent(msg)}
+
+/* ---------- Conexión con Google Sheet ---------- */
+async function api(cuerpo){
+  const r=await fetch(cfg.url,{method:"POST",body:JSON.stringify(cuerpo)});
+  const j=await r.json();if(!j.ok)throw new Error(j.error||"error");return j;
+}
+async function cargar(){
+  if(!cfg.url){$("panelAjustes").hidden=false;$("resumen").textContent="Falta conectar con tu Google Sheet";$("lista").innerHTML='<p class="empty">Pega arriba la URL del script de tu Google Sheet.</p>';return}
+  $("resumen").textContent="Leyendo la hoja…";
+  try{
+    const r=await fetch(cfg.url);const j=await r.json();
+    if(!j.ok)throw new Error(j.error)
+    datos={};orden=[];
+    for(const c of j.candidatos){datos[c.id]={...c,...(pend[c.id]||{})};orden.push(c.id)}
+    if(j.hoja){$("btnHoja").href=j.hoja;$("btnHoja").hidden=false}
+    $("cfgErr").textContent="";render();
+  }catch(e){$("resumen").textContent="No se pudo leer la hoja. Revisa la conexión o los ajustes (⚙).";}
+}
+function guardar(id,campos,ya){
+  Object.assign(datos[id],campos);pend[id]=Object.assign(pend[id]||{},campos);
+  marca(id,"Sin guardar…");clearTimeout(timers[id]);
+  if(ya)flush(id);else timers[id]=setTimeout(()=>flush(id),900);
+}
+function marca(id,t){const s=document.querySelector(`.card[data-id="${id}"] [data-saved]`);if(s)s.textContent=t}
+async function flush(id){
+  if(!pend[id]||enVuelo[id])return;
+  const p=pend[id];delete pend[id];enVuelo[id]=true;marca(id,"Guardando…");
+  try{await api({accion:"guardar",id,campos:p});marca(id,"Guardado en la hoja ✓")}
+  catch(e){pend[id]=Object.assign(p,pend[id]||{});marca(id,"No se guardó. Reintentando…");setTimeout(()=>flush(id),5000)}
+  finally{enVuelo[id]=false;if(pend[id]&&!timers[id])flush(id)}
+}
+window.addEventListener("beforeunload",e=>{if(Object.keys(pend).length){e.preventDefault();e.returnValue=""}});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")Object.keys(pend).forEach(flush)});
+
+/* ---------- Pantalla ---------- */
+function renderFiltros(){
+  const lista=orden.map(id=>datos[id]);
+  const cuenta=k=>k==="TODOS"?lista.length:k==="SIN ESTADO"?lista.filter(c=>!c.estado).length:lista.filter(c=>c.estado===k).length;
+  $("filtros").innerHTML=["TODOS",...ESTADOS.map(e=>e.k),"SIN ESTADO"].map(k=>`<button type="button" class="chip" data-f="${k}" aria-pressed="${filtro===k}">${k==="TODOS"?"Todos":k.charAt(0)+k.slice(1).toLowerCase()} <span class="n">${cuenta(k)}</span></button>`).join("");
+  $("resumen").textContent=lista.length?`${lista.length} candidatos · ${lista.filter(c=>c.estado).length} valorados · ${lista.filter(c=>c.contactado).length} contactados por WhatsApp`:"Sin candidatos todavía";
+}
+function micBtn(target){return SR?`<button type="button" class="mic" data-mic="${target}">🎤 Dictar</button>`:""}
+function cardHTML(id){
+  const c=datos[id],k=cls(c.estado),open=abierto===id;
+  let h=`<div class="card ${k}" data-id="${id}"><button type="button" class="row" data-toggle aria-expanded="${open}">
+    <span class="who"><span class="name">${esc(c.nombre)}</span><span class="tel">${telFmt(c.telefono)}${c.contactado?' · <span class="ok">WhatsApp enviado</span>':""}</span></span>
+    <span class="pill ${k}">${esc(c.estado||"Sin valorar")}</span></button>`;
+  if(open){
+    h+=`<div class="detail">
+      <div class="voice">
+        <div class="actions"><b>Dictar la ficha entera</b>${SR?`<button type="button" class="bigmic primary" data-mic="dic-${id}">🎤 Empezar a dictar</button>`:""}</div>
+        <p class="hint">Di las palabras clave y lo que va detrás: <b>“experiencia</b> dos años de camarera, <b>mensaje</b> busca jornada de mañana, <b>comentarios</b> muy simpática, <b>disponibilidad</b> desde el lunes, <b>estado</b> me gusta”. Después pulsa <b>Repartir en la ficha</b>.${SR?"":" (Este navegador no tiene dictado: usa el micrófono del teclado.)"}</p>
+        <textarea id="dic-${id}" placeholder="Lo que dictes aparecerá aquí…"></textarea>
+        <div class="actions"><button type="button" data-repartir>Repartir en la ficha</button></div>
+      </div>
+      ${CAMPOS.map(([k,t])=>`<label class="f"><span>${t}${micBtn(k+"-"+id)}</span><textarea id="${k}-${id}" data-k="${k}">${esc(c[k])}</textarea></label>`).join("")}
+      <div class="grid2">
+        <label class="f"><span>Disponibilidad / horario${micBtn("disponibilidad-"+id)}</span><input type="text" id="disponibilidad-${id}" data-k="disponibilidad" value="${esc(c.disponibilidad)}"></label>
+        <label class="f"><span>Teléfono</span><input type="tel" id="telefono-${id}" data-k="telefono" value="${esc(c.telefono)}" inputmode="tel"></label>
+      </div>
+      <div><div class="f"><span>Estado</span></div><div class="states" style="margin-top:6px">${ESTADOS.map(e=>`<button type="button" class="st ${e.c}" data-st="${e.k}" aria-pressed="${c.estado===e.k}">${e.k}</button>`).join("")}</div></div>
+      <div class="actions">
+        <a class="btn wa" href="${waLink(c)}" target="_blank" rel="noopener" data-wa>Enviar WhatsApp</a>
+        <button type="button" class="del" data-del>Quitar candidato</button>
+        <span class="saved" data-saved>${c.actualizado?"Última vez: "+esc(c.actualizado):""}</span>
+      </div></div>`;
+  }
+  return h+"</div>";
+}
+function render(){
+  pararMic();renderFiltros();
+  const ids=orden.filter(id=>{const c=datos[id];return filtro==="TODOS"||(filtro==="SIN ESTADO"?!c.estado:c.estado===filtro)});
+  $("lista").innerHTML=ids.length?ids.map(cardHTML).join(""):`<p class="empty">${orden.length?"Nadie en este estado.":"No hay candidatos. Añade el primero con “+ Candidato”."}</p>`;
+}
+function rerenderCard(id){const el=document.querySelector(`.card[data-id="${id}"]`);if(!el)return render();
+  pararMic();const dic=$("dic-"+id)?.value||"";el.outerHTML=cardHTML(id);if($("dic-"+id))$("dic-"+id).value=dic;renderFiltros()}
+
+/* ---------- Dictado por voz ---------- */
+let rec=null,recBtn=null;
+function pararMic(){if(rec){try{rec.stop()}catch(_){}}}
+function empezarMic(btn){
+  const campo=$(btn.dataset.mic);if(!campo)return;
+  if(rec){const mismo=recBtn===btn;pararMic();if(mismo)return}
+  rec=new SR();rec.lang="es-ES";rec.continuous=true;rec.interimResults=true;
+  const base=campo.value?campo.value.replace(/\s*$/," "):"";let final="";
+  rec.onresult=ev=>{let prov="";for(let i=ev.resultIndex;i<ev.results.length;i++){const t=ev.results[i][0].transcript;if(ev.results[i].isFinal)final+=t+" ";else prov+=t}
+    campo.value=base+final+prov;};
+  rec.onerror=ev=>{if(ev.error==="not-allowed")toast("Da permiso al micrófono en el navegador");else if(ev.error!=="no-speech"&&ev.error!=="aborted")toast("El dictado se cortó. Pulsa otra vez.")};
+  rec.onend=()=>{btn.classList.remove("rec");btn.textContent=btn.classList.contains("bigmic")?"🎤 Empezar a dictar":"🎤 Dictar";
+    campo.value=campo.value.trim();if(campo.dataset.k)campo.dispatchEvent(new Event("input",{bubbles:true}));rec=null;recBtn=null};
+  try{rec.start();recBtn=btn;btn.classList.add("rec");btn.textContent="■ Parar"}catch(_){toast("No se pudo usar el micrófono")}
+}
+
+/* Reparte el texto dictado según palabras clave */
+const CLAVES=[["experiencia",["experiencia"]],["mensaje",["mensaje","nos escribe","nos escribio","nos ha escrito"]],["comentarios",["comentarios","comentario","mi opinion","opinion"]],["disponibilidad",["disponibilidad","horario"]],["estado",["estado","valoracion"]]];
+function norm(s){return s.toLowerCase().replace(/[áàä]/g,"a").replace(/[éèë]/g,"e").replace(/[íìï]/g,"i").replace(/[óòö]/g,"o").replace(/[úùü]/g,"u")}
+function repartir(texto){
+  const n=norm(texto),marcas=[];
+  for(const [campo,palabras] of CLAVES)for(const p of palabras){const re=new RegExp("(^|[^a-zñ])("+p+")(?![a-zñ])","g");let m;while((m=re.exec(n))){const ini=m.index+m[1].length;marcas.push({campo,ini,fin:ini+p.length})}}
+  marcas.sort((a,b)=>a.ini-b.ini||b.fin-a.fin);
+  const limpio=[];for(const m of marcas){if(limpio.length&&m.ini<limpio[limpio.length-1].fin)continue;limpio.push(m)}
+  const out={};const add=(k,t)=>{t=t.replace(/^[\s:,.;-]+|[\s,;-]+$/g,"").replace(/^(es|son|que)\s+/i,"");if(t)out[k]=(out[k]?out[k]+" ":"")+t.charAt(0).toUpperCase()+t.slice(1)};
+  add("comentarios",texto.slice(0,limpio.length?limpio[0].ini:texto.length));
+  limpio.forEach((m,i)=>add(m.campo,texto.slice(m.fin,i+1<limpio.length?limpio[i+1].ini:texto.length)));
+  if(out.estado){const e=norm(out.estado);out.estado=/no me gusta/.test(e)?"NO ME GUSTA":/no le cuadra|no cuadra/.test(e)?"NO LE CUADRA":/mas o menos|regular/.test(e)?"MÁS O MENOS":/me gusta|bien|si\b/.test(e)?"ME GUSTA":"";if(!out.estado)delete out.estado}
+  return out;
+}
+
+/* ---------- Eventos ---------- */
+$("filtros").onclick=e=>{const b=e.target.closest("[data-f]");if(!b)return;filtro=b.dataset.f;render()};
+$("lista").addEventListener("click",async e=>{
+  const card=e.target.closest(".card");if(!card)return;const id=card.dataset.id;
+  const mic=e.target.closest("[data-mic]");if(mic){e.preventDefault();empezarMic(mic);return}
+  if(e.target.closest("[data-toggle]")){Object.keys(pend).forEach(flush);abierto=abierto===id?null:id;render();return}
+  const st=e.target.closest("[data-st]");
+  if(st){guardar(id,{estado:datos[id].estado===st.dataset.st?"":st.dataset.st},true);rerenderCard(id);marca(id,"Guardando…");return}
+  if(e.target.closest("[data-wa]")){if(!datos[id].contactado){guardar(id,{contactado:true},true)}return}
+  if(e.target.closest("[data-repartir]")){
+    pararMic();const t=$("dic-"+id).value.trim();if(!t){toast("Primero dicta algo");return}
+    const r=repartir(t),c=datos[id],cambios={};
+    for(const k of ["experiencia","mensaje","comentarios","disponibilidad"])if(r[k])cambios[k]=c[k]?c[k].replace(/\s*$/," ")+r[k]:r[k];
+    if(r.estado)cambios.estado=r.estado;
+    guardar(id,cambios,true);$("dic-"+id).value="";rerenderCard(id);marca(id,"Guardando…");toast("Ficha rellenada");return}
+  const del=e.target.closest("[data-del]");
+  if(del){if(del.dataset.c!=="1"){del.dataset.c="1";del.textContent="Pulsa otra vez para quitar";setTimeout(()=>{del.dataset.c="";del.textContent="Quitar candidato"},3000);return}
+    try{await api({accion:"borrar",id});delete datos[id];orden=orden.filter(x=>x!==id);abierto=null;render();toast("Candidato quitado")}catch(_){toast("No se pudo quitar")}}
+});
+$("lista").addEventListener("input",e=>{const k=e.target.dataset.k;if(!k)return;const id=e.target.closest(".card").dataset.id;guardar(id,{[k]:e.target.value});
+  if(k==="telefono"){const a=e.target.closest(".card").querySelector("[data-wa]");if(a)a.href=waLink(datos[id])}});
+
+$("plantilla").value=ls.get("plantillaWA")||PLANTILLA_DEF;
+$("plantilla").addEventListener("input",e=>ls.set("plantillaWA",e.target.value));
+for(const [b,p] of [["btnPlantilla","panelPlantilla"],["btnNuevo","panelNuevo"],["btnAjustes","panelAjustes"]])$(b).onclick=()=>{$(p).hidden=!$(p).hidden};
+$("btnRecargar").onclick=()=>{Object.keys(pend).forEach(flush);cargar()};
+$("cfgUrl").value=cfg.url;
+$("cfgGuardar").onclick=()=>{cfg={url:$("cfgUrl").value.trim()};
+  if(!/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec/.test(cfg.url)){$("cfgErr").textContent="La URL debe empezar por https://script.google.com y terminar en /exec";return}
+  ls.set("cfgUrl",cfg.url);$("panelAjustes").hidden=true;cargar()};
+$("nGuardar").onclick=async()=>{
+  const nombre=$("nNombre").value.trim(),tel=$("nTel").value.replace(/\D/g,"");
+  if(!nombre){toast("Escribe al menos el nombre");return}
+  $("nGuardar").disabled=true;
+  try{const r=await api({accion:"nuevo",nombre,telefono:tel});$("nNombre").value="";$("nTel").value="";$("panelNuevo").hidden=true;abierto=r.id;await cargar();toast("Añadido: "+nombre)}
+  catch(_){toast("No se pudo añadir")}finally{$("nGuardar").disabled=false}
+};
+cargar();
+</script>
+</body>
+</html>
