@@ -32,6 +32,7 @@
   --si:#7fd69a; --si-bg:#16301f; --no:#f19a92; --no-bg:#3a1a17;
   --mm:#f0c06a; --mm-bg:#352812; --nc:#b9aaf2; --nc-bg:#251f3d; --wa:#5fd394; --rec:#ff7b70; color-scheme:dark}}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 .wrap{max-width:820px;margin:0 auto;padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:18px}
@@ -59,7 +60,21 @@ button:focus-visible,.btn:focus-visible,textarea:focus-visible,input:focus-visib
 .pill{font-size:.75rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:5px 10px;border-radius:999px;white-space:nowrap;color:var(--muted);border:1px dashed var(--line)}
 .pill.si{background:var(--si-bg);color:var(--si);border:0}.pill.no{background:var(--no-bg);color:var(--no);border:0}
 .pill.mm{background:var(--mm-bg);color:var(--mm);border:0}.pill.nc{background:var(--nc-bg);color:var(--nc);border:0}
+.head{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 14px 6px}
+.selwrap select{font:inherit;font-weight:700;font-size:.82rem;letter-spacing:.03em;border-radius:999px;padding:8px 30px 8px 12px;min-height:40px;border:1px solid var(--line);background:var(--surface);color:var(--fg);appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 15px) 55%,calc(100% - 10px) 55%;background-size:5px 5px;background-repeat:no-repeat;max-width:46vw}
+.selwrap select.si{background-color:var(--si-bg);color:var(--si);border-color:transparent}
+.selwrap select.no{background-color:var(--no-bg);color:var(--no);border-color:transparent}
+.selwrap select.mm{background-color:var(--mm-bg);color:var(--mm);border-color:transparent}
+.selwrap select.nc{background-color:var(--nc-bg);color:var(--nc);border-color:transparent}
+.resumen-ficha{padding:0 14px;display:grid;gap:2px;font-size:.9rem;color:var(--muted)}
+.resumen-ficha b{color:var(--fg);font-weight:700}
+.bar{display:flex;gap:8px;flex-wrap:wrap;padding:8px 14px 12px}
+.bar .btn,.bar button{min-height:40px;padding:7px 14px}
 .detail{border-top:1px solid var(--line);padding:14px;display:grid;gap:14px}
+.campo{display:grid;gap:6px}
+.campo .lab{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.mic2{min-height:38px;padding:6px 12px;font-size:.85rem}
+.mic2.rec{background:var(--rec);border-color:var(--rec);color:#fff}
 .voice{background:var(--bg);border-radius:12px;padding:12px;display:grid;gap:8px}
 .hint{color:var(--muted);font-size:.85rem;margin:0}
 .f{display:grid;gap:4px}
@@ -126,7 +141,6 @@ textarea{resize:vertical;min-height:64px}
 
 <script>
 const ESTADOS=[{k:"ME GUSTA",c:"si"},{k:"NO ME GUSTA",c:"no"},{k:"MÁS O MENOS",c:"mm"},{k:"NO LE CUADRA",c:"nc"}];
-const CAMPOS=[["experiencia","Experiencia"],["mensaje","Qué mensaje nos escribe"],["comentarios","Mis comentarios"]];
 const PLANTILLA_DEF="Hola {nombre}, te escribo por la oferta de trabajo a la que te apuntaste. ¿Te viene bien que hablemos un momento? Gracias.";
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const $=id=>document.getElementById(id);
@@ -182,28 +196,29 @@ function renderFiltros(){
   $("filtros").innerHTML=["TODOS",...ESTADOS.map(e=>e.k),"SIN ESTADO"].map(k=>`<button type="button" class="chip" data-f="${k}" aria-pressed="${filtro===k}">${k==="TODOS"?"Todos":k.charAt(0)+k.slice(1).toLowerCase()} <span class="n">${cuenta(k)}</span></button>`).join("");
   $("resumen").textContent=lista.length?`${lista.length} candidatos · ${lista.filter(c=>c.estado).length} valorados · ${lista.filter(c=>c.contactado).length} contactados por WhatsApp`:"Sin candidatos todavía";
 }
-function micBtn(target){return SR?`<button type="button" class="mic" data-mic="${target}">🎤 Dictar</button>`:""}
+const CAMPOS_ED=[["experiencia","Experiencia","textarea"],["mensaje","Qué mensaje nos escribe","textarea"],["comentarios","Mis comentarios","textarea"],["disponibilidad","Disponibilidad / horario","input"],["telefono","Teléfono","tel"]];
 function cardHTML(id){
   const c=datos[id],k=cls(c.estado),open=abierto===id;
-  let h=`<div class="card ${k}" data-id="${id}"><button type="button" class="row" data-toggle aria-expanded="${open}">
-    <span class="who"><span class="name">${esc(c.nombre)}</span><span class="tel">${telFmt(c.telefono)}${c.contactado?' · <span class="ok">WhatsApp enviado</span>':""}</span></span>
-    <span class="pill ${k}">${esc(c.estado||"Sin valorar")}</span></button>`;
+  const opts=`<option value="">— Sin valorar —</option>`+ESTADOS.map(e=>`<option value="${e.k}"${c.estado===e.k?" selected":""}>${e.k}</option>`).join("");
+  let h=`<div class="card ${k}" data-id="${id}">
+    <div class="head">
+      <div class="who"><span class="name">${esc(c.nombre)}</span><span class="tel">${telFmt(c.telefono)}${c.contactado?' · <span class="ok">WhatsApp enviado</span>':""}</span></div>
+      <label class="selwrap"><span class="sr" hidden>Estado de ${esc(c.nombre)}</span><select id="estado-${id}" data-estado class="${k}" aria-label="Estado de ${esc(c.nombre)}">${opts}</select></label>
+    </div>`;
+  if(!open){
+    const r=[["Experiencia","experiencia"],["Mensaje","mensaje"],["Comentarios","comentarios"],["Disponibilidad","disponibilidad"]].filter(([,f])=>c[f]).map(([t,f])=>`<div><b>${t}:</b> ${esc(c[f])}</div>`).join("");
+    if(r)h+=`<div class="resumen-ficha">${r}</div>`;
+  }
+  h+=`<div class="bar">
+      <button type="button" data-editar class="${open?"primary":""}">${open?"✓ Listo":"✏️ Editar"}</button>
+      <a class="btn wa" href="${waLink(c)}" target="_blank" rel="noopener" data-wa>WhatsApp</a>
+    </div>`;
   if(open){
     h+=`<div class="detail">
-      <div class="voice">
-        <div class="actions"><b>Dictar la ficha entera</b>${SR?`<button type="button" class="bigmic primary" data-mic="dic-${id}">🎤 Empezar a dictar</button>`:""}</div>
-        <p class="hint">Di las palabras clave y lo que va detrás: <b>“experiencia</b> dos años de camarera, <b>mensaje</b> busca jornada de mañana, <b>comentarios</b> muy simpática, <b>disponibilidad</b> desde el lunes, <b>estado</b> me gusta”. Después pulsa <b>Repartir en la ficha</b>.${SR?"":" (Este navegador no tiene dictado: usa el micrófono del teclado.)"}</p>
-        <textarea id="dic-${id}" placeholder="Lo que dictes aparecerá aquí…"></textarea>
-        <div class="actions"><button type="button" data-repartir>Repartir en la ficha</button></div>
-      </div>
-      ${CAMPOS.map(([k,t])=>`<label class="f"><span>${t}${micBtn(k+"-"+id)}</span><textarea id="${k}-${id}" data-k="${k}">${esc(c[k])}</textarea></label>`).join("")}
-      <div class="grid2">
-        <label class="f"><span>Disponibilidad / horario${micBtn("disponibilidad-"+id)}</span><input type="text" id="disponibilidad-${id}" data-k="disponibilidad" value="${esc(c.disponibilidad)}"></label>
-        <label class="f"><span>Teléfono</span><input type="tel" id="telefono-${id}" data-k="telefono" value="${esc(c.telefono)}" inputmode="tel"></label>
-      </div>
-      <div><div class="f"><span>Estado</span></div><div class="states" style="margin-top:6px">${ESTADOS.map(e=>`<button type="button" class="st ${e.c}" data-st="${e.k}" aria-pressed="${c.estado===e.k}">${e.k}</button>`).join("")}</div></div>
+      <p class="hint">Escribe en cada casilla o pulsa <b>🎤 Hablar</b> y dilo en voz alta. Se guarda solo.</p>
+      ${CAMPOS_ED.map(([f,t,tipo])=>`<div class="campo"><div class="lab"><label for="${f}-${id}">${t}</label><button type="button" class="mic2" data-mic="${f}-${id}">🎤 Hablar</button></div>${
+        tipo==="textarea"?`<textarea id="${f}-${id}" data-k="${f}">${esc(c[f])}</textarea>`:`<input type="${tipo==="tel"?"tel":"text"}" id="${f}-${id}" data-k="${f}" value="${esc(c[f])}"${tipo==="tel"?' inputmode="tel"':""}>`}</div>`).join("")}
       <div class="actions">
-        <a class="btn wa" href="${waLink(c)}" target="_blank" rel="noopener" data-wa>Enviar WhatsApp</a>
         <button type="button" class="del" data-del>Quitar candidato</button>
         <span class="saved" data-saved>${c.actualizado?"Última vez: "+esc(c.actualizado):""}</span>
       </div></div>`;
@@ -216,37 +231,23 @@ function render(){
   $("lista").innerHTML=ids.length?ids.map(cardHTML).join(""):`<p class="empty">${orden.length?"Nadie en este estado.":"No hay candidatos. Añade el primero con “+ Candidato”."}</p>`;
 }
 function rerenderCard(id){const el=document.querySelector(`.card[data-id="${id}"]`);if(!el)return render();
-  pararMic();const dic=$("dic-"+id)?.value||"";el.outerHTML=cardHTML(id);if($("dic-"+id))$("dic-"+id).value=dic;renderFiltros()}
+  pararMic();el.outerHTML=cardHTML(id);renderFiltros()}
 
 /* ---------- Dictado por voz ---------- */
 let rec=null,recBtn=null;
 function pararMic(){if(rec){try{rec.stop()}catch(_){}}}
 function empezarMic(btn){
   const campo=$(btn.dataset.mic);if(!campo)return;
+  if(!SR){campo.focus();toast("Pulsa el micrófono de tu teclado para dictar");return}
   if(rec){const mismo=recBtn===btn;pararMic();if(mismo)return}
   rec=new SR();rec.lang="es-ES";rec.continuous=true;rec.interimResults=true;
   const base=campo.value?campo.value.replace(/\s*$/," "):"";let final="";
   rec.onresult=ev=>{let prov="";for(let i=ev.resultIndex;i<ev.results.length;i++){const t=ev.results[i][0].transcript;if(ev.results[i].isFinal)final+=t+" ";else prov+=t}
     campo.value=base+final+prov;};
   rec.onerror=ev=>{if(ev.error==="not-allowed")toast("Da permiso al micrófono en el navegador");else if(ev.error!=="no-speech"&&ev.error!=="aborted")toast("El dictado se cortó. Pulsa otra vez.")};
-  rec.onend=()=>{btn.classList.remove("rec");btn.textContent=btn.classList.contains("bigmic")?"🎤 Empezar a dictar":"🎤 Dictar";
-    campo.value=campo.value.trim();if(campo.dataset.k)campo.dispatchEvent(new Event("input",{bubbles:true}));rec=null;recBtn=null};
+  rec.onend=()=>{btn.classList.remove("rec");btn.textContent="🎤 Hablar";
+    campo.value=campo.value.trim();campo.dispatchEvent(new Event("input",{bubbles:true}));rec=null;recBtn=null};
   try{rec.start();recBtn=btn;btn.classList.add("rec");btn.textContent="■ Parar"}catch(_){toast("No se pudo usar el micrófono")}
-}
-
-/* Reparte el texto dictado según palabras clave */
-const CLAVES=[["experiencia",["experiencia"]],["mensaje",["mensaje","nos escribe","nos escribio","nos ha escrito"]],["comentarios",["comentarios","comentario","mi opinion","opinion"]],["disponibilidad",["disponibilidad","horario"]],["estado",["estado","valoracion"]]];
-function norm(s){return s.toLowerCase().replace(/[áàä]/g,"a").replace(/[éèë]/g,"e").replace(/[íìï]/g,"i").replace(/[óòö]/g,"o").replace(/[úùü]/g,"u")}
-function repartir(texto){
-  const n=norm(texto),marcas=[];
-  for(const [campo,palabras] of CLAVES)for(const p of palabras){const re=new RegExp("(^|[^a-zñ])("+p+")(?![a-zñ])","g");let m;while((m=re.exec(n))){const ini=m.index+m[1].length;marcas.push({campo,ini,fin:ini+p.length})}}
-  marcas.sort((a,b)=>a.ini-b.ini||b.fin-a.fin);
-  const limpio=[];for(const m of marcas){if(limpio.length&&m.ini<limpio[limpio.length-1].fin)continue;limpio.push(m)}
-  const out={};const add=(k,t)=>{t=t.replace(/^[\s:,.;-]+|[\s,;-]+$/g,"").replace(/^(es|son|que)\s+/i,"");if(t)out[k]=(out[k]?out[k]+" ":"")+t.charAt(0).toUpperCase()+t.slice(1)};
-  add("comentarios",texto.slice(0,limpio.length?limpio[0].ini:texto.length));
-  limpio.forEach((m,i)=>add(m.campo,texto.slice(m.fin,i+1<limpio.length?limpio[i+1].ini:texto.length)));
-  if(out.estado){const e=norm(out.estado);out.estado=/no me gusta/.test(e)?"NO ME GUSTA":/no le cuadra|no cuadra/.test(e)?"NO LE CUADRA":/mas o menos|regular/.test(e)?"MÁS O MENOS":/me gusta|bien|si\b/.test(e)?"ME GUSTA":"";if(!out.estado)delete out.estado}
-  return out;
 }
 
 /* ---------- Eventos ---------- */
@@ -254,20 +255,15 @@ $("filtros").onclick=e=>{const b=e.target.closest("[data-f]");if(!b)return;filtr
 $("lista").addEventListener("click",async e=>{
   const card=e.target.closest(".card");if(!card)return;const id=card.dataset.id;
   const mic=e.target.closest("[data-mic]");if(mic){e.preventDefault();empezarMic(mic);return}
-  if(e.target.closest("[data-toggle]")){Object.keys(pend).forEach(flush);abierto=abierto===id?null:id;render();return}
-  const st=e.target.closest("[data-st]");
-  if(st){guardar(id,{estado:datos[id].estado===st.dataset.st?"":st.dataset.st},true);rerenderCard(id);marca(id,"Guardando…");return}
+  if(e.target.closest("[data-editar]")){Object.keys(pend).forEach(flush);const was=abierto;abierto=abierto===id?null:id;
+    if(was&&was!==id)rerenderCard(was);rerenderCard(id);if(abierto)document.querySelector(`.card[data-id="${id}"]`)?.scrollIntoView({block:"start",behavior:"smooth"});return}
   if(e.target.closest("[data-wa]")){if(!datos[id].contactado){guardar(id,{contactado:true},true)}return}
-  if(e.target.closest("[data-repartir]")){
-    pararMic();const t=$("dic-"+id).value.trim();if(!t){toast("Primero dicta algo");return}
-    const r=repartir(t),c=datos[id],cambios={};
-    for(const k of ["experiencia","mensaje","comentarios","disponibilidad"])if(r[k])cambios[k]=c[k]?c[k].replace(/\s*$/," ")+r[k]:r[k];
-    if(r.estado)cambios.estado=r.estado;
-    guardar(id,cambios,true);$("dic-"+id).value="";rerenderCard(id);marca(id,"Guardando…");toast("Ficha rellenada");return}
   const del=e.target.closest("[data-del]");
   if(del){if(del.dataset.c!=="1"){del.dataset.c="1";del.textContent="Pulsa otra vez para quitar";setTimeout(()=>{del.dataset.c="";del.textContent="Quitar candidato"},3000);return}
     try{await api({accion:"borrar",id});delete datos[id];orden=orden.filter(x=>x!==id);abierto=null;render();toast("Candidato quitado")}catch(_){toast("No se pudo quitar")}}
 });
+$("lista").addEventListener("change",e=>{if(!e.target.matches("[data-estado]"))return;const id=e.target.closest(".card").dataset.id;
+  guardar(id,{estado:e.target.value},true);rerenderCard(id);marca(id,"Guardando…");toast(e.target.value?datos[id].nombre+": "+e.target.value:datos[id].nombre+": sin valorar")});
 $("lista").addEventListener("input",e=>{const k=e.target.dataset.k;if(!k)return;const id=e.target.closest(".card").dataset.id;guardar(id,{[k]:e.target.value});
   if(k==="telefono"){const a=e.target.closest(".card").querySelector("[data-wa]");if(a)a.href=waLink(datos[id])}});
 
