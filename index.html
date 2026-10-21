@@ -101,6 +101,13 @@ textarea{resize:vertical;min-height:64px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;z-index:20;max-width:90vw}
 .del{color:var(--no);border-color:transparent;background:none}
 .err{color:var(--no);font-weight:700;margin:0}
+.leer{border:2px solid var(--accent)}
+.res{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:12px}
+.match{border-radius:10px;padding:10px 12px;font-weight:700;display:grid;gap:8px}
+.match.ya{background:var(--mm-bg);color:var(--mm)}
+.match.nuevo{background:var(--si-bg);color:var(--si)}
+.match select{font:inherit;font-size:16px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 10px;width:100%}
+.big{min-height:50px;font-size:1.05rem}
 @media (prefers-reduced-motion:no-preference){.detail{animation:in .18s ease-out}@keyframes in{from{opacity:.4;transform:translateY(-4px)}to{opacity:1;transform:none}}}
 </style>
 </head>
@@ -112,12 +119,39 @@ textarea{resize:vertical;min-height:64px}
       <p class="sub" id="resumen">Cargando…</p>
     </div>
     <div class="tools">
+      <button id="btnLeer" type="button" class="primary">📋 Pegar candidato</button>
       <button id="btnRecargar" type="button" title="Volver a leer la hoja">Actualizar</button>
       <button id="btnPlantilla" type="button">Mensaje WhatsApp</button>
       <button id="btnNuevo" type="button">+ Candidato</button>
       <a id="btnHoja" class="btn primary" href="#" target="_blank" rel="noopener" hidden>Abrir Google Sheet</a>
     </div>
   </header>
+
+  <section class="panel leer" id="panelLeer" hidden>
+    <h2>Pegar candidato</h2>
+    <p class="hint">Copia del portal el perfil, la experiencia y los mensajes, y pégalo aquí. Se resume y se comprueba si ya tienes a esa persona.</p>
+    <textarea id="lTexto" rows="8" placeholder="Pega aquí el texto del candidato"></textarea>
+    <div class="actions">
+      <button type="button" class="primary" id="lLeer">Sacar datos</button>
+      <button type="button" id="lLimpiar">Empezar de nuevo</button>
+      <span class="hint" id="lMsg"></span>
+    </div>
+    <div class="res" id="lRes" hidden>
+      <div class="match" id="lMatch">
+        <span id="lMatchTxt"></span>
+        <select id="lDestino" aria-label="Dónde guardar"></select>
+      </div>
+      <div class="grid2">
+        <label class="f"><span>Nombre</span><input type="text" id="r-nombre"></label>
+        <label class="f"><span>Teléfono</span><input type="tel" id="r-telefono" inputmode="tel"></label>
+      </div>
+      <label class="f"><span>Experiencia (resumen)</span><textarea id="r-experiencia" rows="4"></textarea></label>
+      <label class="f"><span>Qué mensaje nos escribe</span><textarea id="r-mensaje" rows="3"></textarea></label>
+      <label class="f"><span>Disponibilidad / horario</span><input type="text" id="r-disponibilidad"></label>
+      <p class="hint" id="lNota"></p>
+      <div class="actions"><button type="button" class="primary big" id="lGuardar">Guardar en la hoja</button></div>
+    </div>
+  </section>
 
   <section class="panel" id="panelPlantilla" hidden>
     <h2>Mensaje por defecto para WhatsApp</h2>
@@ -277,6 +311,97 @@ $("nGuardar").onclick=async()=>{
   $("nGuardar").disabled=true;
   try{const r=await api({accion:"nuevo",nombre,telefono:tel});$("nNombre").value="";$("nTel").value="";$("panelNuevo").hidden=true;abierto=r.id;await cargar();toast("Añadido: "+nombre)}
   catch(_){toast("No se pudo añadir")}finally{$("nGuardar").disabled=false}
+};
+
+/* ---------- Texto pegado → datos del candidato ---------- */
+const CAMPOS_IA=["nombre","telefono","experiencia","mensaje","disponibilidad"];
+let destinoManual=false;
+const norm=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9ñ ]/g," ").replace(/\s+/g," ").trim();
+const tel9=t=>String(t||"").replace(/\D/g,"").slice(-9);
+function limpiaTel(t){t=String(t||"").replace(/\D/g,"");if(t.length===11&&t.startsWith("34"))t=t.slice(2);if(t.length===13&&t.startsWith("0034"))t=t.slice(4);return t}
+
+$("btnLeer").onclick=()=>{const p=$("panelLeer");p.hidden=!p.hidden;if(!p.hidden)p.scrollIntoView({block:"start",behavior:"smooth"})};
+
+$("lLimpiar").onclick=()=>{$("lTexto").value="";$("lRes").hidden=true;$("lMsg").textContent="";destinoManual=false};
+
+const PROMPT_IA=`Eres un asistente para seleccionar personal de un restaurante en Madrid. Te paso texto copiado de un portal de empleo o de un chat (InfoJobs, Indeed, LinkedIn, WhatsApp…) sobre UNA persona candidata.
+Saca sus datos y responde SOLO con este JSON:
+{"nombre":"","telefono":"","experiencia":"","mensaje":"","disponibilidad":""}
+- nombre: nombre y apellidos tal como aparecen.
+- telefono: solo dígitos. Si es español, sin el prefijo 34.
+- experiencia: resumen corto de 2 a 4 líneas: años totales aproximados, puestos (barra, sala, terraza, cocina…), tipo de sitios (hoteles, eventos, cervecerías…) y el trabajo más reciente con sus fechas. No copies la lista entera.
+- mensaje: lo que la persona nos escribió, resumido en una o dos frases, y a qué oferta se apuntó si aparece.
+- disponibilidad: días, horario o desde cuándo puede empezar, si lo dice (por ejemplo "fines de semana"). Si no lo dice, "".
+Si un dato no aparece, pon "". No inventes nada. Escribe en español.`;
+
+async function llamarIA(texto){
+  const j=await api({accion:"leer",prompt:PROMPT_IA,texto});return j.datos||{};
+}
+function buscarExistente(d){
+  const t=tel9(d.telefono);
+  if(t.length===9){const id=orden.find(i=>tel9(datos[i].telefono)===t);if(id)return{id,por:"mismo teléfono"}}
+  const n=norm(d.nombre);if(!n)return null;
+  let id=orden.find(i=>norm(datos[i].nombre)===n);if(id)return{id,por:"mismo nombre"};
+  const p=n.split(" ");
+  if(p.length>=2){id=orden.find(i=>{const m=norm(datos[i].nombre).split(" ");return m[0]===p[0]&&m.length>1&&m.slice(1).some(x=>p.slice(1).includes(x))});if(id)return{id,por:"nombre parecido"}}
+  return null;
+}
+function pintarDestino(sel){
+  const opts=`<option value="">➕ Es nuevo: añadir a la lista</option>`+orden.map(i=>`<option value="${i}"${i===sel?" selected":""}>Actualizar a: ${esc(datos[i].nombre)}${datos[i].telefono?" · "+telFmt(datos[i].telefono):""}</option>`).join("");
+  $("lDestino").innerHTML=opts;$("lDestino").value=sel||"";pintarMatch();
+}
+function pintarMatch(por){
+  const id=$("lDestino").value,m=$("lMatch");
+  if(id){m.className="match ya";$("lMatchTxt").textContent=`Ya lo tienes en la lista: ${datos[id].nombre}${por?" ("+por+")":""}. Se añadirá lo nuevo a su ficha.`;
+    $("lGuardar").textContent="Actualizar ficha de "+(datos[id].nombre||"").split(" ")[0]}
+  else{m.className="match nuevo";$("lMatchTxt").textContent="Persona nueva: no está en tu lista.";$("lGuardar").textContent="Añadir a la lista"}
+}
+function revisarCoincidencia(){if(destinoManual)return;const d={nombre:$("r-nombre").value,telefono:$("r-telefono").value};const m=buscarExistente(d);pintarDestino(m?.id);if(m)pintarMatch(m.por)}
+$("lDestino").addEventListener("change",()=>{destinoManual=true;pintarMatch()});
+$("r-nombre").addEventListener("input",revisarCoincidencia);$("r-telefono").addEventListener("input",revisarCoincidencia);
+
+$("lLeer").onclick=async()=>{
+  const texto=$("lTexto").value.trim();
+  if(!texto){$("lMsg").textContent="Pega primero el texto del candidato.";return}
+  $("lLeer").disabled=true;$("lMsg").textContent="Resumiendo el texto… (unos segundos)";
+  try{
+    if(!orden.length)await cargar();
+    const d=await llamarIA(texto);
+    if(!CAMPOS_IA.some(k=>String(d[k]||"").trim())){$("lMsg").textContent="No encontré datos de un candidato. Prueba pegando más texto.";return}
+    d.telefono=limpiaTel(d.telefono);
+    for(const k of CAMPOS_IA)$("r-"+k).value=String(d[k]||"").trim();
+    destinoManual=false;revisarCoincidencia();
+    $("lNota").textContent="Revisa y corrige lo que haga falta antes de guardar.";
+    $("lRes").hidden=false;$("lMsg").textContent="";$("lRes").scrollIntoView({block:"start",behavior:"smooth"});
+  }catch(e){$("lMsg").textContent="No se pudo leer: "+(e.message||"error")+". Prueba otra vez."}
+  finally{$("lLeer").disabled=false}
+};
+
+function unir(viejo,nuevo){viejo=String(viejo||"").trim();nuevo=String(nuevo||"").trim();
+  if(!nuevo)return viejo;if(!viejo)return nuevo;if(norm(viejo).includes(norm(nuevo)))return viejo;if(norm(nuevo).includes(norm(viejo)))return nuevo;return viejo+"\n"+nuevo}
+$("lGuardar").onclick=async()=>{
+  const d={};for(const k of CAMPOS_IA)d[k]=$("r-"+k).value.trim();d.telefono=limpiaTel(d.telefono);
+  const id=$("lDestino").value,b=$("lGuardar");
+  if(!id&&!d.nombre){toast("Falta el nombre");return}
+  b.disabled=true;
+  try{
+    if(id){const c=datos[id],campos={};
+      if(!c.nombre&&d.nombre)campos.nombre=d.nombre;
+      if(d.telefono&&!c.telefono)campos.telefono=d.telefono;
+      else if(d.telefono&&tel9(c.telefono)!==tel9(d.telefono))campos.comentarios=unir(c.comentarios,"Otro teléfono: "+d.telefono);
+      for(const k of ["experiencia","mensaje","disponibilidad"]){const v=unir(c[k],d[k]);if(v!==String(c[k]||"").trim())campos[k]=v}
+      if(Object.keys(campos).length){guardar(id,campos,true);toast("Ficha actualizada: "+c.nombre)}else toast(c.nombre+": no había nada nuevo");
+      abierto=id;filtro="TODOS";render();
+    }else{
+      const r=await api({accion:"nuevo",nombre:d.nombre,telefono:d.telefono});
+      const extra={};for(const k of ["experiencia","mensaje","disponibilidad"])if(d[k])extra[k]=d[k];
+      if(Object.keys(extra).length)await api({accion:"guardar",id:r.id,campos:extra});
+      abierto=r.id;filtro="TODOS";await cargar();toast("Añadido: "+d.nombre);
+    }
+    $("lLimpiar").click();$("panelLeer").hidden=true;
+    document.querySelector(`.card[data-id="${abierto}"]`)?.scrollIntoView({block:"start",behavior:"smooth"});
+  }catch(e){toast("No se pudo guardar en la hoja")}
+  finally{b.disabled=false}
 };
 cargar();
 </script>
