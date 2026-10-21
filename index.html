@@ -53,7 +53,10 @@ button:focus-visible,.btn:focus-visible,textarea:focus-visible,input:focus-visib
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .card.si{box-shadow:inset 4px 0 0 var(--si)}.card.no{box-shadow:inset 4px 0 0 var(--no)}.card.mm{box-shadow:inset 4px 0 0 var(--mm)}.card.nc{box-shadow:inset 4px 0 0 var(--nc)}
 .row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 14px;width:100%;border:0;border-radius:0;background:none;text-align:left;min-height:60px;justify-content:stretch}
-.who{min-width:0}
+.who{min-width:0;display:grid;grid-template-columns:auto 1fr;column-gap:8px;align-items:center;text-align:left;border:0;background:none;padding:0;min-height:44px;border-radius:8px;justify-content:start;font-weight:400}
+.who .flecha{grid-row:span 2;color:var(--muted);font-size:.9rem;transition:transform .15s}
+.card.abierta .who .flecha{transform:rotate(90deg)}
+.card:not(.abierta) .head{padding-bottom:12px}
 .name{font-family:var(--display);font-weight:700;font-size:1.15rem;display:block}
 .tel{color:var(--muted);font-variant-numeric:tabular-nums;font-size:.9rem;font-weight:400}
 .tel .ok{color:var(--wa);font-weight:700}
@@ -182,6 +185,7 @@ const cls=e=>(ESTADOS.find(x=>x.k===e)||{}).c||"";
 const ls={get:k=>{try{return localStorage.getItem(k)}catch(_){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(_){}}};
 let cfg={url:URL_SCRIPT};
 let datos={},orden=[],abierto=null,filtro="TODOS";
+const desplegados=new Set();
 const pend={},enVuelo={},timers={};
 
 function toast(t){const el=$("toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2800)}
@@ -232,13 +236,14 @@ function renderFiltros(){
 }
 const CAMPOS_ED=[["experiencia","Experiencia","textarea"],["mensaje","Qué mensaje nos escribe","textarea"],["comentarios","Mis comentarios","textarea"],["disponibilidad","Disponibilidad / horario","input"],["telefono","Teléfono","tel"]];
 function cardHTML(id){
-  const c=datos[id],k=cls(c.estado),open=abierto===id;
+  const c=datos[id],k=cls(c.estado),open=abierto===id,desp=open||desplegados.has(id);
   const opts=`<option value="">— Sin valorar —</option>`+ESTADOS.map(e=>`<option value="${e.k}"${c.estado===e.k?" selected":""}>${e.k}</option>`).join("");
-  let h=`<div class="card ${k}" data-id="${id}">
+  let h=`<div class="card ${k}${desp?" abierta":""}" data-id="${id}">
     <div class="head">
-      <div class="who"><span class="name">${esc(c.nombre)}</span><span class="tel">${telFmt(c.telefono)}${c.contactado?' · <span class="ok">WhatsApp enviado</span>':""}</span></div>
+      <button type="button" class="who" data-desplegar aria-expanded="${desp}"><span class="flecha" aria-hidden="true">▶</span><span class="name">${esc(c.nombre)}</span><span class="tel">${telFmt(c.telefono)}${c.contactado?' · <span class="ok">WhatsApp enviado</span>':""}</span></button>
       <label class="selwrap"><span class="sr" hidden>Estado de ${esc(c.nombre)}</span><select id="estado-${id}" data-estado class="${k}" aria-label="Estado de ${esc(c.nombre)}">${opts}</select></label>
     </div>`;
+  if(!desp)return h+"</div>";
   if(!open){
     const r=[["Experiencia","experiencia"],["Mensaje","mensaje"],["Comentarios","comentarios"],["Disponibilidad","disponibilidad"]].filter(([,f])=>c[f]).map(([t,f])=>`<div><b>${t}:</b> ${esc(c[f])}</div>`).join("");
     if(r)h+=`<div class="resumen-ficha">${r}</div>`;
@@ -289,7 +294,11 @@ $("filtros").onclick=e=>{const b=e.target.closest("[data-f]");if(!b)return;filtr
 $("lista").addEventListener("click",async e=>{
   const card=e.target.closest(".card");if(!card)return;const id=card.dataset.id;
   const mic=e.target.closest("[data-mic]");if(mic){e.preventDefault();empezarMic(mic);return}
-  if(e.target.closest("[data-editar]")){Object.keys(pend).forEach(flush);const was=abierto;abierto=abierto===id?null:id;
+  if(e.target.closest("[data-desplegar]")){
+    if(desplegados.has(id)||abierto===id){desplegados.delete(id);if(abierto===id){Object.keys(pend).forEach(flush);abierto=null}}
+    else desplegados.add(id);
+    rerenderCard(id);return}
+  if(e.target.closest("[data-editar]")){Object.keys(pend).forEach(flush);desplegados.add(id);const was=abierto;abierto=abierto===id?null:id;
     if(was&&was!==id)rerenderCard(was);rerenderCard(id);if(abierto)document.querySelector(`.card[data-id="${id}"]`)?.scrollIntoView({block:"start",behavior:"smooth"});return}
   if(e.target.closest("[data-wa]")){if(!datos[id].contactado){guardar(id,{contactado:true},true)}return}
   const del=e.target.closest("[data-del]");
