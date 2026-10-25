@@ -82,9 +82,19 @@ button:focus-visible,.btn:focus-visible,textarea:focus-visible,input:focus-visib
 .card.arch{opacity:.75}
 .head{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 14px 6px}
 .card:not(.abierta) .head{padding-bottom:12px}
-.who{min-width:0;display:grid;grid-template-columns:auto 1fr;column-gap:8px;row-gap:2px;align-items:center;text-align:left;border:0;background:none;padding:0;min-height:44px;border-radius:8px;justify-content:start;font-weight:400}
+.who{min-width:0;display:grid;grid-template-columns:auto auto 1fr;column-gap:8px;row-gap:2px;align-items:center;text-align:left;border:0;background:none;padding:0;min-height:44px;border-radius:8px;justify-content:start;font-weight:400}
 .who .flecha{grid-row:span 3;color:var(--muted);font-size:.9rem;transition:transform .15s}
-.who>span:not(.flecha){grid-column:2}
+.who>span:not(.flecha):not(.ava){grid-column:3}
+.ava{grid-row:span 3;position:relative;width:48px;height:48px;border-radius:50%;overflow:hidden;background:var(--accent-bg);color:var(--accent);display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:1.05rem;flex:none}
+.ava img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.fotobox{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.fotobox img{width:72px;height:72px;border-radius:50%;object-fit:cover;border:1px solid var(--line)}
+.fotobtn{cursor:pointer}
+.sintel{color:var(--mm);font-weight:700}
+.telform{margin:10px 14px 0;padding:10px 12px;border-radius:12px;background:var(--mm-bg);display:grid;gap:6px}
+.telform label{font-weight:700;color:var(--mm);font-size:.9rem}
+.telrow{display:flex;gap:8px}
+.telrow input{flex:1;min-width:0}
 .card.abierta .who .flecha{transform:rotate(90deg)}
 .name{font-family:var(--display);font-weight:700;font-size:1.15rem;display:block}
 .tel{color:var(--muted);font-variant-numeric:tabular-nums;font-size:.9rem;font-weight:400}
@@ -190,7 +200,8 @@ textarea{resize:vertical;min-height:64px}
     <h2>Pegar candidato</h2>
     <p class="hint">Copia del portal el perfil, la experiencia y los mensajes, y pégalo aquí. Se resume, se valora el encaje y se comprueba si ya tienes a esa persona.</p>
     <label class="f"><span>Para la búsqueda</span><select id="lBusq"></select></label>
-    <textarea id="lTexto" rows="8" placeholder="Pega aquí el texto del candidato"></textarea>
+    <textarea id="lTexto" rows="8" placeholder="Pega aquí el texto del candidato (si copias también la foto del perfil, se guarda en la ficha)"></textarea>
+    <div class="fotobox" id="lFotoBox" hidden><img id="lFotoImg" alt="Foto del perfil"><span class="hint">Foto del perfil encontrada</span><button type="button" class="del" id="lFotoQuitar">Quitar foto</button></div>
     <div class="actions">
       <button type="button" class="primary" id="lLeer">Sacar datos</button>
       <button type="button" id="lLimpiar">Empezar de nuevo</button>
@@ -402,6 +413,18 @@ function renderCitas(){
   $("citas").hidden=false;
 }
 const CAMPOS_ED=[["experiencia","Experiencia","textarea"],["mensaje","Qué mensaje nos escribe","textarea"],["comentarios","Mis comentarios","textarea"],["disponibilidad","Disponibilidad / horario","input"],["telefono","Teléfono","tel"],["nombre","Nombre","input"]];
+function iniciales(n){return String(n||"?").trim().split(/\s+/).slice(0,2).map(x=>x[0]||"").join("").toUpperCase()||"?"}
+const fotoOk=f=>/^(https:\/\/|data:image\/)/.test(String(f||""));
+function avatar(c){return `<span class="ava" aria-hidden="true">${esc(iniciales(c.nombre))}${fotoOk(c.foto)?`<img src="${esc(c.foto)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:""}</span>`}
+function telFormHTML(id){return `<div class="telform"><label for="nt-${id}">📞 Añadir teléfono</label><div class="telrow"><input type="tel" inputmode="tel" id="nt-${id}" data-nuevotel placeholder="Ej.: 612 345 678" autocomplete="off"><button type="button" class="primary" data-guardartel>Guardar</button></div></div>`}
+function guardarTelefono(id){
+  const inp=document.querySelector(`.card[data-id="${id}"] [data-nuevotel]`);if(!inp)return;
+  const t=limpiaTel(inp.value);
+  if(t.replace(/\D/g,"").length<9){toast("Escribe el número completo (9 cifras)");inp.focus();return}
+  const otro=orden.find(i=>i!==id&&tel9(datos[i].telefono)===tel9(t));
+  guardar(id,{telefono:t},true);rerenderCard(id);
+  toast(otro?"Guardado. Ojo: "+datos[otro].nombre+" tiene el mismo teléfono":"Teléfono guardado: "+telFmt(t));
+}
 function cardHTML(id){
   const c=datos[id],k=cls(c.estado),open=abierto===id,desp=open||desplegados.has(id),p=pasoDe(c);
   const opts=`<option value="">— Sin valorar —</option>`+ESTADOS.map(e=>`<option value="${e.k}"${c.estado===e.k?" selected":""}>${e.k}</option>`).join("");
@@ -412,10 +435,11 @@ function cardHTML(id){
   if(c.archivado)meta.push(`<span class="tag">🗄 Archivado</span>`);
   let h=`<div class="card ${k}${desp?" abierta":""}${c.archivado?" arch":""}" data-id="${id}">
     <div class="head">
-      <button type="button" class="who" data-desplegar aria-expanded="${desp}"><span class="flecha" aria-hidden="true">▶</span><span class="name">${esc(c.nombre)}</span><span class="tel">${telFmt(c.telefono)}${c.contactado?' · <span class="ok">WhatsApp enviado</span>':""}</span><span class="meta">${meta.join("")}</span></button>
+      <button type="button" class="who" data-desplegar aria-expanded="${desp}"><span class="flecha" aria-hidden="true">▶</span>${avatar(c)}<span class="name">${esc(c.nombre)}</span><span class="tel">${c.telefono?telFmt(c.telefono):'<span class="sintel">📞 Sin teléfono</span>'}${c.contactado?' · <span class="ok">WhatsApp enviado</span>':""}</span><span class="meta">${meta.join("")}</span></button>
       <label class="selwrap"><select data-estado class="${k}" aria-label="Valoración de ${esc(c.nombre)}">${opts}</select></label>
     </div>`;
   if(!desp)return h+"</div>";
+  if(!c.telefono)h+=telFormHTML(id);
   if(!open){
     const r=[["Experiencia","experiencia"],["Mensaje","mensaje"],["Comentarios","comentarios"],["Disponibilidad","disponibilidad"]].filter(([,f])=>c[f]).map(([t,f])=>`<div><b>${t}:</b> ${esc(c[f])}</div>`).join("")
       +(c.encaje?`<div><b>Encaje:</b> <span class="estrellas">${estrellas(c.encaje)}</span> ${esc(c.motivo)}</div>`:"");
@@ -432,7 +456,7 @@ function cardHTML(id){
       <button type="button" data-archivar>${c.archivado?"↩ Recuperar":"🗄 Archivar"}</button>
     </div>`;
   if(waAbierto===id){
-    h+=`<div class="wamenu">${c.telefono?plantillas().map((pl,i)=>`<a class="btn" href="${esc(waLink(c,pl.texto))}" target="_blank" rel="noopener" data-wa="${i}">💬 ${esc(pl.nombre||"Mensaje "+(i+1))}</a>`).join(""):`<p class="hint">Falta el teléfono. Pulsa ✏️ Editar para ponerlo.</p>`}
+    h+=`<div class="wamenu">${c.telefono?plantillas().map((pl,i)=>`<a class="btn" href="${esc(waLink(c,pl.texto))}" target="_blank" rel="noopener" data-wa="${i}">💬 ${esc(pl.nombre||"Mensaje "+(i+1))}</a>`).join(""):`<p class="hint">Primero pon el teléfono en el cuadro de arriba.</p>`}
       <p class="hint">Puedes cambiar estos mensajes en 💬 Mensajes, arriba.</p></div>`;
   }
   if(open){
@@ -441,6 +465,8 @@ function cardHTML(id){
       <p class="hint">Escribe en cada casilla o pulsa <b>🎤 Hablar</b> y dilo en voz alta. Se guarda solo.</p>
       ${CAMPOS_ED.map(([f,t,tipo])=>`<div class="campo"><div class="lab"><label for="${f}-${id}">${t}</label><button type="button" class="mic2" data-mic="${f}-${id}">🎤 Hablar</button></div>${
         tipo==="textarea"?`<textarea id="${f}-${id}" data-k="${f}">${esc(c[f])}</textarea>`:`<input type="${tipo==="tel"?"tel":"text"}" id="${f}-${id}" data-k="${f}" value="${esc(c[f])}"${tipo==="tel"?' inputmode="tel"':""}>`}</div>`).join("")}
+      <div class="campo"><div class="lab"><span>Foto</span></div><div class="fotobox">${fotoOk(c.foto)?`<img src="${esc(c.foto)}" alt="Foto de ${esc(c.nombre)}" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'hint',textContent:'La foto ya no se puede ver (el portal la ha quitado)'}))">`:`<span class="hint">Sin foto</span>`}
+        <label class="btn fotobtn">📷 ${fotoOk(c.foto)?"Cambiar":"Poner"} foto<input type="file" accept="image/*" data-foto hidden></label>${fotoOk(c.foto)?`<button type="button" class="del" data-quitarfoto>Quitar foto</button>`:""}</div></div>
       <label class="f"><span>Búsqueda</span><select data-mover>${bs.map(b=>`<option value="${esc(b.nombre)}"${c.busqueda===b.nombre?" selected":""}>${esc(b.nombre)}${b.cerrada?" (cerrada)":""}</option>`).join("")}${c.busqueda?"":`<option value="" selected>(sin búsqueda)</option>`}</select></label>
       <div class="actions">
         <button type="button" class="del" data-del>Quitar candidato del todo</button>
@@ -531,6 +557,8 @@ $("lista").addEventListener("click",async e=>{
     if(!c.contactado)cambios.contactado=true;
     if(!c.paso||c.paso==="Nuevo")cambios.paso="Contactado";
     waAbierto=null;guardar(id,cambios,true);setTimeout(()=>rerenderCard(id),50);return}
+  if(e.target.closest("[data-guardartel]")){guardarTelefono(id);return}
+  if(e.target.closest("[data-quitarfoto]")){guardar(id,{foto:""},true);rerenderCard(id);return}
   const enc=e.target.closest("[data-encaje]");if(enc){valorarEncaje(id,enc);return}
   if(e.target.closest("[data-archivar]")){const a=!datos[id].archivado;guardar(id,{archivado:a},true);desplegados.delete(id);if(abierto===id)abierto=null;render();
     toast(a?datos[id].nombre+" archivado. Lo ves en 🗄 Archivados":datos[id].nombre+" recuperado");return}
@@ -545,8 +573,10 @@ $("lista").addEventListener("change",e=>{
   if(e.target.matches("[data-cita]")){const v=e.target.value,cambios={cita:v};
     if(v&&["Nuevo","Contactado"].includes(pasoDe(datos[id])))cambios.paso="Entrevista";
     guardar(id,cambios,true);rerenderCard(id);if(v)toast("Cita: "+citaCorta(v));return}
+  if(e.target.matches("[data-foto]")){const f=e.target.files[0];if(!f)return;fotoMini(f).then(u=>{guardar(id,{foto:u},true);rerenderCard(id);toast("Foto guardada")}).catch(()=>toast("No se pudo usar esa foto"));return}
   if(e.target.matches("[data-mover]")){const v=e.target.value;guardar(id,{busqueda:v},true);abierto=null;render();toast(datos[id].nombre+" pasa a "+v);return}
 });
+$("lista").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches("[data-nuevotel]")){e.preventDefault();guardarTelefono(e.target.closest(".card").dataset.id)}});
 $("lista").addEventListener("input",e=>{const k=e.target.dataset.k;if(!k)return;const id=e.target.closest(".card").dataset.id;guardar(id,{[k]:e.target.value})});
 
 /* ---------- Filtros y búsqueda ---------- */
@@ -625,14 +655,37 @@ $("nGuardar").onclick=async()=>{
 /* ---------- Pegar candidato ---------- */
 const CAMPOS_IA=["nombre","telefono","experiencia","mensaje","disponibilidad","motivo"];
 let destinoManual=false;
-$("lLimpiar").onclick=()=>{$("lTexto").value="";$("lRes").hidden=true;$("lMsg").textContent="";destinoManual=false};
+let fotoPegada="";
+function ponerFotoPegada(u){fotoPegada=u||"";$("lFotoBox").hidden=!fotoPegada;if(fotoPegada)$("lFotoImg").src=fotoPegada}
+function fotoMini(blob,lado=180){return new Promise((ok,ko)=>{const u=URL.createObjectURL(blob),im=new Image();
+  im.onload=()=>{const s=Math.min(1,lado/Math.min(im.naturalWidth,im.naturalHeight)),w=Math.round(im.naturalWidth*s),hh=Math.round(im.naturalHeight*s),l=Math.min(w,hh,lado);
+    const cv=document.createElement("canvas");cv.width=l;cv.height=l;cv.getContext("2d").drawImage(im,(l-w)/2,(l-hh)/2,w,hh);URL.revokeObjectURL(u);
+    let q=.8,d=cv.toDataURL("image/jpeg",q);while(d.length>40000&&q>.3){q-=.15;d=cv.toDataURL("image/jpeg",q)}ok(d)};
+  im.onerror=()=>{URL.revokeObjectURL(u);ko(new Error("img"))};im.src=u})}
+function fotoDeHtml(html){
+  const doc=new DOMParser().parseFromString(html,"text/html");
+  const imgs=[...doc.images].map(im=>({src:im.getAttribute("src")||"",w:+im.getAttribute("width")||0,h:+im.getAttribute("height")||0,alt:(im.getAttribute("alt")||"")+" "+(im.className||"")}))
+    .filter(x=>/^https:\/\//.test(x.src)&&!/\.svg(\?|$)/i.test(x.src)&&!(x.w&&x.w<32)&&!(x.h&&x.h<32)&&!/logo|icon|emoji|sprite|badge/i.test(x.src+" "+x.alt));
+  const pref=imgs.find(x=>/avatar|photo|foto|profile|perfil|picture/i.test(x.src+" "+x.alt));
+  return (pref||imgs[0]||{}).src||"";
+}
+$("lTexto").addEventListener("paste",e=>{
+  const cd=e.clipboardData;if(!cd)return;
+  const file=[...(cd.items||[])].find(i=>i.kind==="file"&&i.type.startsWith("image/"))?.getAsFile();
+  const html=cd.getData("text/html");
+  if(file){fotoMini(file).then(ponerFotoPegada).catch(()=>{});if(!cd.getData("text/plain"))e.preventDefault()}
+  else if(html){const u=fotoDeHtml(html);if(u)ponerFotoPegada(u)}
+});
+$("lFotoQuitar").onclick=()=>ponerFotoPegada("");
+$("lLimpiar").onclick=()=>{ponerFotoPegada("");$("lTexto").value="";$("lRes").hidden=true;$("lMsg").textContent="";destinoManual=false};
 function buscarExistente(d){
   const t=tel9(d.telefono);
   if(t.length===9){const id=orden.find(i=>tel9(datos[i].telefono)===t);if(id)return{id,por:"mismo teléfono"}}
   const n=norm(d.nombre);if(!n)return null;
   let id=orden.find(i=>norm(datos[i].nombre)===n);if(id)return{id,por:"mismo nombre"};
   const p=n.split(" ");
-  if(p.length>=2){id=orden.find(i=>{const m=norm(datos[i].nombre).split(" ");return m[0]===p[0]&&m.length>1&&m.slice(1).some(x=>p.slice(1).includes(x))});if(id)return{id,por:"nombre parecido"}}
+  if(p.length>=2){id=orden.find(i=>{const m=norm(datos[i].nombre).split(" ");return m[0]===p[0]&&m.length>1&&m.slice(1).some(x=>p.slice(1).includes(x))});if(id)return{id,por:"nombre parecido"}
+    id=orden.find(i=>norm(datos[i].nombre)===p[0]);if(id)return{id,por:"mismo nombre de pila, comprueba que es la misma persona"}}
   return null;
 }
 function pintarDestino(sel){
@@ -691,9 +744,11 @@ $("lGuardar").onclick=async()=>{
       for(const k of ["experiencia","mensaje","disponibilidad"]){const v=unir(c[k],d[k]);if(v!==String(c[k]||"").trim())campos[k]=v}
       if(d.encaje){campos.encaje=d.encaje;campos.motivo=d.motivo}
       if(c.archivado)campos.archivado=false;
+      if(fotoPegada&&fotoPegada!==c.foto)campos.foto=fotoPegada;
+      if(d.nombre&&norm(d.nombre).split(" ").length>norm(c.nombre).split(" ").length&&norm(d.nombre).startsWith(norm(c.nombre)))campos.nombre=d.nombre;
       if(Object.keys(campos).length){guardar(id,campos,true);toast("Ficha actualizada: "+c.nombre)}else toast(c.nombre+": no había nada nuevo");
     }else{
-      const campos={busqueda:busq,paso:"Nuevo"};for(const k of ["experiencia","mensaje","disponibilidad","encaje","motivo"])if(d[k])campos[k]=d[k];
+      const campos={busqueda:busq,paso:"Nuevo"};if(fotoPegada)campos.foto=fotoPegada;for(const k of ["experiencia","mensaje","disponibilidad","encaje","motivo"])if(d[k])campos[k]=d[k];
       idFinal=await crear(d.nombre,d.telefono,campos);await cargar();toast("Añadido: "+d.nombre);
     }
     $("lLimpiar").click();$("panelLeer").hidden=true;
