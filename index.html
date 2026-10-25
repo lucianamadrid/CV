@@ -95,6 +95,10 @@ button:focus-visible,.btn:focus-visible,textarea:focus-visible,input:focus-visib
 .telform label{font-weight:700;color:var(--mm);font-size:.9rem}
 .telrow{display:flex;gap:8px}
 .telrow input{flex:1;min-width:0}
+.wabox{margin:10px 14px 0;padding:10px 12px;border-radius:12px;background:var(--si-bg);display:grid;gap:6px}
+.wabox .lab{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:700;color:var(--si);font-size:.9rem}
+.wabox textarea{min-height:70px}
+.wabox .saved{font-size:.8rem}
 .card.abierta .who .flecha{transform:rotate(90deg)}
 .name{font-family:var(--display);font-weight:700;font-size:1.15rem;display:block}
 .tel{color:var(--muted);font-variant-numeric:tabular-nums;font-size:.9rem;font-weight:400}
@@ -354,7 +358,7 @@ function coincideTexto(c){
   if(!F.q.trim())return true;
   const q=norm(F.q),dig=F.q.replace(/\D/g,"");
   if(dig.length>=3&&String(c.telefono||"").replace(/\D/g,"").includes(dig))return true;
-  return norm([c.nombre,c.experiencia,c.mensaje,c.comentarios,c.disponibilidad,c.motivo].join(" ")).includes(q);
+  return norm([c.nombre,c.experiencia,c.mensaje,c.comentarios,c.disponibilidad,c.motivo,c.whatsapp].join(" ")).includes(q);
 }
 const enBusq=c=>F.busq===""||c.busqueda===F.busq;
 function base(){return orden.filter(id=>{const c=datos[id];return enBusq(c)&&!!c.archivado===F.arch&&coincideTexto(c)})}
@@ -445,6 +449,9 @@ function cardHTML(id){
       +(c.encaje?`<div><b>Encaje:</b> <span class="estrellas">${estrellas(c.encaje)}</span> ${esc(c.motivo)}</div>`:"");
     if(r)h+=`<div class="resumen-ficha">${r}</div>`;
   }
+  h+=`<div class="wabox"><div class="lab"><label for="whatsapp-${id}">💬 Lo que contesta por WhatsApp</label><button type="button" class="mic2" data-mic="whatsapp-${id}">🎤 Hablar</button></div>
+      <textarea id="whatsapp-${id}" data-k="whatsapp" placeholder="Pega o escribe aquí sus respuestas (ej.: puede los domingos, empieza el 1 de noviembre)">${esc(c.whatsapp)}</textarea>
+      ${open?"":`<span class="saved" data-saved></span>`}</div>`;
   h+=`<div class="proceso">
       <label class="f"><span>Paso</span><select data-paso aria-label="Paso de ${esc(c.nombre)}">${PASOS.map(x=>`<option value="${x.k}"${p===x.k?" selected":""}>${x.i} ${x.k}</option>`).join("")}</select></label>
       <label class="f"><span>Cita (entrevista o prueba)</span><input type="datetime-local" data-cita value="${esc(c.cita)}"></label>
@@ -536,7 +543,7 @@ async function valorarEncaje(id,btn){
     const prompt=`Eres un asistente de selección de personal para un restaurante en Madrid. Valora del 1 al 5 cuánto encaja esta persona con lo que se busca (5 = cumple todo, 3 = cumple parte, 1 = no encaja). Si falta información sobre un criterio no lo cuentes en contra, pero dilo. Responde SOLO con JSON: {"encaje":número,"motivo":"una frase corta: qué cumple, qué no y qué falta preguntarle"}
 LO QUE SE BUSCA:
 ${b.criterios}`;
-    const r=await llamarIA(prompt,JSON.stringify({nombre:c.nombre,experiencia:c.experiencia,mensaje:c.mensaje,disponibilidad:c.disponibilidad,comentarios:c.comentarios}));
+    const r=await llamarIA(prompt,JSON.stringify({nombre:c.nombre,experiencia:c.experiencia,mensaje:c.mensaje,disponibilidad:c.disponibilidad,comentarios:c.comentarios,respuestas_whatsapp:c.whatsapp}));
     const n=nota(r.encaje);if(!n)throw new Error("no salió una nota");
     guardar(id,{encaje:n,motivo:String(r.motivo||"").trim()},true);desplegados.add(id);rerenderCard(id);toast(c.nombre+": encaje "+n+"/5");
   }catch(e){toast("No se pudo valorar: "+(e.message||"error"));btn.disabled=false;btn.textContent="⭐ Valorar encaje"}
