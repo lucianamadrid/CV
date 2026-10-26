@@ -80,7 +80,12 @@ button:focus-visible,.btn:focus-visible,textarea:focus-visible,input:focus-visib
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .card.si{box-shadow:inset 4px 0 0 var(--si)}.card.no{box-shadow:inset 4px 0 0 var(--no)}.card.mm{box-shadow:inset 4px 0 0 var(--mm)}.card.nc{box-shadow:inset 4px 0 0 var(--nc)}
 .card.arch{opacity:.75}
-.head{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 14px 6px}
+.head{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:12px 14px 6px 4px}
+.asa{width:34px;align-self:stretch;display:grid;place-items:center;color:var(--muted);font-size:1.3rem;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:8px}
+.asa:active{cursor:grabbing;background:var(--bg)}
+.card.arrastrando{box-shadow:0 12px 30px rgba(0,0,0,.25);opacity:.95;pointer-events:none}
+.hueco{border:2px dashed var(--accent);border-radius:14px;background:var(--accent-bg)}
+body.moviendo{user-select:none;-webkit-user-select:none;overflow-anchor:none}
 .card:not(.abierta) .head{padding-bottom:12px}
 .who{min-width:0;display:grid;grid-template-columns:auto auto 1fr;column-gap:8px;row-gap:2px;align-items:center;text-align:left;border:0;background:none;padding:0;min-height:44px;border-radius:8px;justify-content:start;font-weight:400}
 .who .flecha{grid-row:span 3;color:var(--muted);font-size:.9rem;transition:transform .15s}
@@ -373,8 +378,51 @@ function visibles(){
     cita:(a,b)=>{const x=fechaCita(datos[a].cita),y=fechaCita(datos[b].cita);return ((x?+x:Infinity)-(y?+y:Infinity))||pos[b]-pos[a]},
     nombre:(a,b)=>String(datos[a].nombre).localeCompare(String(datos[b].nombre),"es")
   }[F.orden]||((a,b)=>pos[b]-pos[a]);
+  if(F.orden==="manual")return ordenManual(ids);
   return ids.sort(por);
 }
+
+/* ---------- Orden a mano (arrastrar) ---------- */
+function ordenManual(ids){const pos=Object.fromEntries(orden.map((id,i)=>[id,i]));
+  return [...ids].sort((a,b)=>{const x=+datos[a].posicion||0,y=+datos[b].posicion||0;
+    if(!x&&!y)return pos[b]-pos[a];if(!x)return -1;if(!y)return 1;return x-y})}
+async function guardarOrden(nuevos){
+  const base=ordenManual(orden),set=new Set(nuevos);
+  const huecos=base.map((id,i)=>set.has(id)?i:-1).filter(i=>i>=0);
+  huecos.forEach((s,k)=>base[s]=nuevos[k]);
+  const pos={};base.forEach((id,i)=>{if(+datos[id].posicion!==i+1){pos[id]=i+1;datos[id].posicion=String(i+1)}});
+  if(F.orden!=="manual"){F.orden="manual";ls.set("orden","manual");renderFiltros();toast("Orden cambiado a “✋ Mi orden”")}
+  if(!Object.keys(pos).length)return;
+  try{await api({accion:"posiciones",posiciones:pos})}
+  catch(_){toast("No se guardó el orden en la hoja. ¿Has actualizado el script?")}
+}
+let drag=null;
+function moverA(y){
+  drag.y=y;drag.card.style.top=(y-drag.dy)+"px";
+  const otros=[...$("lista").querySelectorAll(".card:not(.arrastrando)")];
+  const antes=otros.find(o=>{const r=o.getBoundingClientRect();return y<r.top+r.height/2});
+  if(antes){if(drag.ph.nextElementSibling!==antes)antes.before(drag.ph)}
+  else if(otros.length&&drag.ph.previousElementSibling!==otros.at(-1))otros.at(-1).after(drag.ph);
+}
+function bucleArrastre(){if(!drag)return;const y=drag.y,m=90;
+  if(y<m)window.scrollBy(0,-Math.ceil((m-y)/6));else if(y>innerHeight-m)window.scrollBy(0,Math.ceil((y-innerHeight+m)/6));
+  moverA(drag.y);requestAnimationFrame(bucleArrastre)}
+function soltar(){if(!drag)return;const {card,ph}=drag;drag=null;document.body.classList.remove("moviendo");
+  card.classList.remove("arrastrando");card.removeAttribute("style");ph.replaceWith(card);
+  guardarOrden([...$("lista").querySelectorAll(".card")].map(c=>c.dataset.id))}
+$("lista").addEventListener("pointerdown",e=>{
+  const asa=e.target.closest("[data-asa]");if(!asa||drag||e.button>0)return;
+  e.preventDefault();pararMic();
+  const card=asa.closest(".card"),r=card.getBoundingClientRect();
+  const ph=document.createElement("div");ph.className="hueco";ph.style.height=r.height+"px";card.after(ph);
+  card.classList.add("arrastrando");Object.assign(card.style,{position:"fixed",left:r.left+"px",top:r.top+"px",width:r.width+"px",zIndex:30,margin:0});
+  document.body.classList.add("moviendo");
+  drag={card,ph,dy:e.clientY-r.top,y:e.clientY};
+  try{asa.setPointerCapture(e.pointerId)}catch(_){}
+  asa.onpointermove=ev=>{if(drag)drag.y=ev.clientY};
+  asa.onpointerup=asa.onpointercancel=()=>{asa.onpointermove=asa.onpointerup=asa.onpointercancel=null;soltar()};
+  requestAnimationFrame(bucleArrastre);
+});
 
 /* ---------- Pantalla ---------- */
 function renderBusq(){
@@ -401,7 +449,7 @@ function renderFiltros(){
   const nArch=orden.filter(id=>enBusq(datos[id])&&datos[id].archivado).length;
   $("fEstados").innerHTML=["TODOS",...ESTADOS.map(e=>e.k),"SIN VALORAR"].map(k=>`<button type="button" class="chip" data-fe="${k}" aria-pressed="${F.estado===k}">${k==="TODOS"?"Toda valoración":k.charAt(0)+k.slice(1).toLowerCase()} <span class="n">${cE(k)}</span></button>`).join("")
     +`<button type="button" class="chip" data-farch aria-pressed="${F.arch}">🗄 Archivados <span class="n">${nArch}</span></button>`
-    +`<select id="selOrden" aria-label="Ordenar">${[["nuevos","Más nuevos primero"],["antiguos","Más antiguos primero"],["encaje","Mejor encaje"],["cita","Próxima cita"],["nombre","Por nombre"]].map(([v,t])=>`<option value="${v}"${F.orden===v?" selected":""}>${t}</option>`).join("")}</select>`;
+    +`<select id="selOrden" aria-label="Ordenar">${[["manual","✋ Mi orden"],["nuevos","Más nuevos primero"],["antiguos","Más antiguos primero"],["encaje","Mejor encaje"],["cita","Próxima cita"],["nombre","Por nombre"]].map(([v,t])=>`<option value="${v}"${F.orden===v?" selected":""}>${t}</option>`).join("")}</select>`;
   const todos=orden.map(id=>datos[id]).filter(c=>enBusq(c)&&!c.archivado);
   const nombreB=F.busq||"todas las búsquedas";
   $("resumen").textContent=todos.length?`${todos.length} candidatos en ${nombreB} · ${todos.filter(c=>c.estado).length} valorados · ${todos.filter(c=>pasoDe(c)!=="Nuevo").length} contactados`:(cargado?`Sin candidatos en ${nombreB}`:"Cargando…");
@@ -439,6 +487,7 @@ function cardHTML(id){
   if(c.archivado)meta.push(`<span class="tag">🗄 Archivado</span>`);
   let h=`<div class="card ${k}${desp?" abierta":""}${c.archivado?" arch":""}" data-id="${id}">
     <div class="head">
+      <span class="asa" data-asa title="Mantén pulsado y arrastra para cambiar el orden" aria-hidden="true">⠿</span>
       <button type="button" class="who" data-desplegar aria-expanded="${desp}"><span class="flecha" aria-hidden="true">▶</span>${avatar(c)}<span class="name">${esc(c.nombre)}</span><span class="tel">${c.telefono?telFmt(c.telefono):'<span class="sintel">📞 Sin teléfono</span>'}${c.contactado?' · <span class="ok">WhatsApp enviado</span>':""}</span><span class="meta">${meta.join("")}</span></button>
       <label class="selwrap"><select data-estado class="${k}" aria-label="Valoración de ${esc(c.nombre)}">${opts}</select></label>
     </div>`;
